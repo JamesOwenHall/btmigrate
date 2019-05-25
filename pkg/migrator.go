@@ -1,46 +1,48 @@
 package btmigrate
 
 import (
-	"io/ioutil"
-	"path/filepath"
+	"context"
 
-	"github.com/kezhuw/toml"
+	"cloud.google.com/go/bigtable"
 )
 
 type Migrator struct {
-	config Config
+	AdminClient *bigtable.AdminClient
+	Client      *bigtable.Client
 }
 
-func NewMigrator(config Config) *Migrator {
-	return &Migrator{
-		config: config,
+func (m *Migrator) Apply(def MigrationDefinition) error {
+	if err := m.createTables(def.Create); err != nil {
+		return err
 	}
+	return m.dropTables(def.Drop)
 }
 
-// GetDefinitions parses the migration definitions from the migration
-// directory.
-// TODO: Fail if TOML contains unknown keys.
-func (m *Migrator) GetDefinitions() ([]MigrationDefinition, error) {
-	files, err := ioutil.ReadDir(m.config.MigrationDir)
-	if err != nil {
-		return nil, err
-	}
-
-	var defs []MigrationDefinition
-	for _, file := range files {
-		path := filepath.Join(m.config.MigrationDir, file.Name())
-		payload, err := ioutil.ReadFile(path)
-		if err != nil {
-			return nil, err
+func (m *Migrator) createTables(tables map[string]map[string]GCDefinition) error {
+	for name, families := range tables {
+		tableConf := bigtable.TableConf{
+			TableID:  name,
+			Families: make(map[string]bigtable.GCPolicy),
 		}
 
-		var def MigrationDefinition
-		if err := toml.Unmarshal(payload, &def); err != nil {
-			return nil, err
+		for fam, gc := range families {
+			tableConf.Families[fam] = gc.toGCPolicy()
 		}
 
-		defs = append(defs, def)
+		if err := m.AdminClient.CreateTableFromConf(context.Background(), &tableConf); err != nil {
+			return err
+		}
 	}
 
-	return defs, nil
+	return nil
+}
+
+func (m *Migrator) dropTables(tables []string) error {
+	for _, name := range tables {
+		if err := m.AdminClient.DeleteTable(context.Background(), name); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

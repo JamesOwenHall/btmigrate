@@ -1,5 +1,0 @@
-[create.table-1]
-fam-1 = {}
-fam-2 = {max-versions = 3, max-age = "5d"}
-
-[drop.table-2]

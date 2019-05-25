@@ -1,11 +1,39 @@
 package btmigrate
 
+import (
+	"time"
+
+	"cloud.google.com/go/bigtable"
+)
+
 type MigrationDefinition struct {
-	Create map[string]map[string]GCDefinition `toml:"create"`
-	Drop   map[string]struct{}                `toml:"drop"`
+	Create CreateDefinition
+	Drop   []string
 }
 
+type CreateDefinition map[string]map[string]GCDefinition
+
 type GCDefinition struct {
-	MaxVersions int    `toml:"max-versions"`
-	MaxAge      string `toml:"max-age"`
+	MaxVersions int
+	MaxAge      time.Duration
+}
+
+func (g GCDefinition) toGCPolicy() bigtable.GCPolicy {
+	var policies []bigtable.GCPolicy
+
+	if g.MaxVersions != 0 {
+		policies = append(policies, bigtable.MaxVersionsPolicy(g.MaxVersions))
+	}
+	if g.MaxAge != 0 {
+		policies = append(policies, bigtable.MaxAgePolicy(g.MaxAge))
+	}
+
+	switch len(policies) {
+	case 0:
+		return bigtable.NoGcPolicy()
+	case 1:
+		return policies[0]
+	default:
+		return bigtable.UnionPolicy(policies...)
+	}
 }
