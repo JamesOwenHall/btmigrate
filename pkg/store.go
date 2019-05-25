@@ -7,8 +7,9 @@ import (
 )
 
 type Store struct {
-	AdminClient *bigtable.AdminClient
-	Client      *bigtable.Client
+	AdminClient     *bigtable.AdminClient
+	Client          *bigtable.Client
+	MigrationsTable string
 }
 
 func (s *Store) Apply(def MigrationDefinition) error {
@@ -45,4 +46,14 @@ func (s *Store) dropTables(tables []string) error {
 	}
 
 	return nil
+}
+
+func (s *Store) CreateMigrationsTable() error {
+	tableConf := bigtable.TableConf{
+		TableID: s.MigrationsTable,
+		Families: map[string]bigtable.GCPolicy{
+			"meta": bigtable.NoGcPolicy(),
+		},
+	}
+	return s.AdminClient.CreateTableFromConf(context.Background(), &tableConf)
 }

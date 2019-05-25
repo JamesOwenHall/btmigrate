@@ -71,6 +71,28 @@ func TestStoreDrop(t *testing.T) {
 	})
 }
 
+func TestStoreCreateMigrationsTable(t *testing.T) {
+	withBigtable(t, func(admin *bigtable.AdminClient, client *bigtable.Client) {
+		store := &Store{
+			AdminClient:     admin,
+			Client:          client,
+			MigrationsTable: "migrations",
+		}
+
+		err := store.CreateMigrationsTable()
+		require.NoError(t, err)
+
+		actual := getTables(t, admin)
+		expected := map[string][]bigtable.FamilyInfo{
+			"migrations": []bigtable.FamilyInfo{
+				{Name: "meta"},
+			},
+		}
+
+		require.Equal(t, expected, actual)
+	})
+}
+
 func withBigtable(t *testing.T, fn func(*bigtable.AdminClient, *bigtable.Client)) {
 	server, err := bttest.NewServer("localhost:0")
 	require.NoError(t, err)
