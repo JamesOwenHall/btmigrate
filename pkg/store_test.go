@@ -14,9 +14,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestMigratorCreate(t *testing.T) {
+func TestStoreCreate(t *testing.T) {
 	withBigtable(t, func(admin *bigtable.AdminClient, client *bigtable.Client) {
-		migrator := &Migrator{AdminClient: admin, Client: client}
+		store := &Store{AdminClient: admin, Client: client}
 		def := MigrationDefinition{
 			Create: CreateDefinition{
 				"table-1": map[string]GCDefinition{
@@ -28,7 +28,7 @@ func TestMigratorCreate(t *testing.T) {
 			},
 		}
 
-		err := migrator.Apply(def)
+		err := store.Apply(def)
 		require.NoError(t, err)
 
 		actual := getTables(t, admin)
@@ -45,9 +45,9 @@ func TestMigratorCreate(t *testing.T) {
 	})
 }
 
-func TestMigratorDrop(t *testing.T) {
+func TestStoreDrop(t *testing.T) {
 	withBigtable(t, func(admin *bigtable.AdminClient, client *bigtable.Client) {
-		migrator := &Migrator{AdminClient: admin, Client: client}
+		store := &Store{AdminClient: admin, Client: client}
 		def := MigrationDefinition{
 			Create: CreateDefinition{
 				"table-1": map[string]GCDefinition{
@@ -56,14 +56,14 @@ func TestMigratorDrop(t *testing.T) {
 			},
 		}
 
-		err := migrator.Apply(def)
+		err := store.Apply(def)
 		require.NoError(t, err)
 
 		def = MigrationDefinition{
 			Drop: []string{"table-1"},
 		}
 
-		err = migrator.Apply(def)
+		err = store.Apply(def)
 		require.NoError(t, err)
 
 		actual := getTables(t, admin)

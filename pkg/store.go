@@ -6,19 +6,19 @@ import (
 	"cloud.google.com/go/bigtable"
 )
 
-type Migrator struct {
+type Store struct {
 	AdminClient *bigtable.AdminClient
 	Client      *bigtable.Client
 }
 
-func (m *Migrator) Apply(def MigrationDefinition) error {
-	if err := m.createTables(def.Create); err != nil {
+func (s *Store) Apply(def MigrationDefinition) error {
+	if err := s.createTables(def.Create); err != nil {
 		return err
 	}
-	return m.dropTables(def.Drop)
+	return s.dropTables(def.Drop)
 }
 
-func (m *Migrator) createTables(tables map[string]map[string]GCDefinition) error {
+func (s *Store) createTables(tables map[string]map[string]GCDefinition) error {
 	for name, families := range tables {
 		tableConf := bigtable.TableConf{
 			TableID:  name,
@@ -29,7 +29,7 @@ func (m *Migrator) createTables(tables map[string]map[string]GCDefinition) error
 			tableConf.Families[fam] = gc.toGCPolicy()
 		}
 
-		if err := m.AdminClient.CreateTableFromConf(context.Background(), &tableConf); err != nil {
+		if err := s.AdminClient.CreateTableFromConf(context.Background(), &tableConf); err != nil {
 			return err
 		}
 	}
@@ -37,9 +37,9 @@ func (m *Migrator) createTables(tables map[string]map[string]GCDefinition) error
 	return nil
 }
 
-func (m *Migrator) dropTables(tables []string) error {
+func (s *Store) dropTables(tables []string) error {
 	for _, name := range tables {
-		if err := m.AdminClient.DeleteTable(context.Background(), name); err != nil {
+		if err := s.AdminClient.DeleteTable(context.Background(), name); err != nil {
 			return err
 		}
 	}
