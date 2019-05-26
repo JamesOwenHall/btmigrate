@@ -2,7 +2,6 @@ package btmigrate_test
 
 import (
 	"context"
-	"sort"
 	"testing"
 	"time"
 
@@ -31,7 +30,9 @@ func TestStoreCreate(t *testing.T) {
 		err := store.Apply(def)
 		require.NoError(t, err)
 
-		actual := getTables(t, admin)
+		actual, err := store.Tables()
+		require.NoError(t, err)
+
 		expected := map[string][]bigtable.FamilyInfo{
 			"table-1": []bigtable.FamilyInfo{
 				{Name: "fam-1"},
@@ -40,7 +41,6 @@ func TestStoreCreate(t *testing.T) {
 				{Name: "fam-4", GCPolicy: "(versions() > 1 || age() > 1h)"},
 			},
 		}
-
 		require.Equal(t, expected, actual)
 	})
 }
@@ -66,7 +66,8 @@ func TestStoreDrop(t *testing.T) {
 		err = store.Apply(def)
 		require.NoError(t, err)
 
-		actual := getTables(t, admin)
+		actual, err := store.Tables()
+		require.NoError(t, err)
 		require.Empty(t, actual)
 	})
 }
@@ -82,13 +83,14 @@ func TestStoreCreateMigrationsTable(t *testing.T) {
 		err := store.CreateMigrationsTable()
 		require.NoError(t, err)
 
-		actual := getTables(t, admin)
+		actual, err := store.Tables()
+		require.NoError(t, err)
+
 		expected := map[string][]bigtable.FamilyInfo{
 			"migrations": []bigtable.FamilyInfo{
 				{Name: "meta"},
 			},
 		}
-
 		require.Equal(t, expected, actual)
 	})
 }
@@ -114,23 +116,4 @@ func withBigtable(t *testing.T, fn func(*bigtable.AdminClient, *bigtable.Client)
 	defer client.Close()
 
 	fn(adminClient, client)
-}
-
-func getTables(t *testing.T, admin *bigtable.AdminClient) map[string][]bigtable.FamilyInfo {
-	tableNames, err := admin.Tables(context.Background())
-	require.NoError(t, err)
-
-	infos := map[string][]bigtable.FamilyInfo{}
-	for _, table := range tableNames {
-		info, err := admin.TableInfo(context.Background(), table)
-		require.NoError(t, err)
-
-		sort.Slice(info.FamilyInfos, func(i, j int) bool {
-			return info.FamilyInfos[i].Name < info.FamilyInfos[j].Name
-		})
-
-		infos[table] = info.FamilyInfos
-	}
-
-	return infos
 }

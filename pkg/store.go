@@ -2,6 +2,7 @@ package btmigrate
 
 import (
 	"context"
+	"sort"
 
 	"cloud.google.com/go/bigtable"
 )
@@ -56,4 +57,27 @@ func (s *Store) CreateMigrationsTable() error {
 		},
 	}
 	return s.AdminClient.CreateTableFromConf(context.Background(), &tableConf)
+}
+
+func (s *Store) Tables() (map[string][]bigtable.FamilyInfo, error) {
+	tableNames, err := s.AdminClient.Tables(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	infos := map[string][]bigtable.FamilyInfo{}
+	for _, table := range tableNames {
+		info, err := s.AdminClient.TableInfo(context.Background(), table)
+		if err != nil {
+			return nil, err
+		}
+
+		sort.Slice(info.FamilyInfos, func(i, j int) bool {
+			return info.FamilyInfos[i].Name < info.FamilyInfos[j].Name
+		})
+
+		infos[table] = info.FamilyInfos
+	}
+
+	return infos, nil
 }
