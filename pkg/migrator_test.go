@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestStoreCreate(t *testing.T) {
+func TestMigratorCreate(t *testing.T) {
 	withBigtable(t, func(admin *bigtable.AdminClient, client *bigtable.Client) {
-		store := &Store{AdminClient: admin, Client: client}
+		migrator := &Migrator{AdminClient: admin, Client: client}
 		def := MigrationDefinition{
 			Create: CreateDefinition{
 				"table-1": map[string]GCDefinition{
@@ -27,10 +27,10 @@ func TestStoreCreate(t *testing.T) {
 			},
 		}
 
-		err := store.Apply(def)
+		err := migrator.Apply(def)
 		require.NoError(t, err)
 
-		actual, err := store.Tables()
+		actual, err := migrator.Tables()
 		require.NoError(t, err)
 
 		expected := map[string][]bigtable.FamilyInfo{
@@ -45,9 +45,9 @@ func TestStoreCreate(t *testing.T) {
 	})
 }
 
-func TestStoreDrop(t *testing.T) {
+func TestMigratorDrop(t *testing.T) {
 	withBigtable(t, func(admin *bigtable.AdminClient, client *bigtable.Client) {
-		store := &Store{AdminClient: admin, Client: client}
+		migrator := &Migrator{AdminClient: admin, Client: client}
 		def := MigrationDefinition{
 			Create: CreateDefinition{
 				"table-1": map[string]GCDefinition{
@@ -56,34 +56,34 @@ func TestStoreDrop(t *testing.T) {
 			},
 		}
 
-		err := store.Apply(def)
+		err := migrator.Apply(def)
 		require.NoError(t, err)
 
 		def = MigrationDefinition{
 			Drop: []string{"table-1"},
 		}
 
-		err = store.Apply(def)
+		err = migrator.Apply(def)
 		require.NoError(t, err)
 
-		actual, err := store.Tables()
+		actual, err := migrator.Tables()
 		require.NoError(t, err)
 		require.Empty(t, actual)
 	})
 }
 
-func TestStoreCreateMigrationsTable(t *testing.T) {
+func TestMigratorCreateMigrationsTable(t *testing.T) {
 	withBigtable(t, func(admin *bigtable.AdminClient, client *bigtable.Client) {
-		store := &Store{
+		migrator := &Migrator{
 			AdminClient:     admin,
 			Client:          client,
 			MigrationsTable: "migrations",
 		}
 
-		err := store.CreateMigrationsTable()
+		err := migrator.CreateMigrationsTable()
 		require.NoError(t, err)
 
-		actual, err := store.Tables()
+		actual, err := migrator.Tables()
 		require.NoError(t, err)
 
 		expected := map[string][]bigtable.FamilyInfo{

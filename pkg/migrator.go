@@ -7,20 +7,20 @@ import (
 	"cloud.google.com/go/bigtable"
 )
 
-type Store struct {
+type Migrator struct {
 	AdminClient     *bigtable.AdminClient
 	Client          *bigtable.Client
 	MigrationsTable string
 }
 
-func (s *Store) Apply(def MigrationDefinition) error {
-	if err := s.createTables(def.Create); err != nil {
+func (m *Migrator) Apply(def MigrationDefinition) error {
+	if err := m.createTables(def.Create); err != nil {
 		return err
 	}
-	return s.dropTables(def.Drop)
+	return m.dropTables(def.Drop)
 }
 
-func (s *Store) createTables(tables map[string]map[string]GCDefinition) error {
+func (m *Migrator) createTables(tables map[string]map[string]GCDefinition) error {
 	for name, families := range tables {
 		tableConf := bigtable.TableConf{
 			TableID:  name,
@@ -31,7 +31,7 @@ func (s *Store) createTables(tables map[string]map[string]GCDefinition) error {
 			tableConf.Families[fam] = gc.toGCPolicy()
 		}
 
-		if err := s.AdminClient.CreateTableFromConf(context.Background(), &tableConf); err != nil {
+		if err := m.AdminClient.CreateTableFromConf(context.Background(), &tableConf); err != nil {
 			return err
 		}
 	}
@@ -39,9 +39,9 @@ func (s *Store) createTables(tables map[string]map[string]GCDefinition) error {
 	return nil
 }
 
-func (s *Store) dropTables(tables []string) error {
+func (m *Migrator) dropTables(tables []string) error {
 	for _, name := range tables {
-		if err := s.AdminClient.DeleteTable(context.Background(), name); err != nil {
+		if err := m.AdminClient.DeleteTable(context.Background(), name); err != nil {
 			return err
 		}
 	}
@@ -49,25 +49,25 @@ func (s *Store) dropTables(tables []string) error {
 	return nil
 }
 
-func (s *Store) CreateMigrationsTable() error {
+func (m *Migrator) CreateMigrationsTable() error {
 	tableConf := bigtable.TableConf{
-		TableID: s.MigrationsTable,
+		TableID: m.MigrationsTable,
 		Families: map[string]bigtable.GCPolicy{
 			"meta": bigtable.NoGcPolicy(),
 		},
 	}
-	return s.AdminClient.CreateTableFromConf(context.Background(), &tableConf)
+	return m.AdminClient.CreateTableFromConf(context.Background(), &tableConf)
 }
 
-func (s *Store) Tables() (map[string][]bigtable.FamilyInfo, error) {
-	tableNames, err := s.AdminClient.Tables(context.Background())
+func (m *Migrator) Tables() (map[string][]bigtable.FamilyInfo, error) {
+	tableNames, err := m.AdminClient.Tables(context.Background())
 	if err != nil {
 		return nil, err
 	}
 
 	infos := map[string][]bigtable.FamilyInfo{}
 	for _, table := range tableNames {
-		info, err := s.AdminClient.TableInfo(context.Background(), table)
+		info, err := m.AdminClient.TableInfo(context.Background(), table)
 		if err != nil {
 			return nil, err
 		}
