@@ -49,16 +49,6 @@ func (m *Migrator) dropTables(tables []string) error {
 	return nil
 }
 
-func (m *Migrator) CreateMigrationsTable() error {
-	tableConf := bigtable.TableConf{
-		TableID: m.MigrationsTable,
-		Families: map[string]bigtable.GCPolicy{
-			"meta": bigtable.NoGcPolicy(),
-		},
-	}
-	return m.AdminClient.CreateTableFromConf(context.Background(), &tableConf)
-}
-
 func (m *Migrator) Tables() (map[string][]bigtable.FamilyInfo, error) {
 	tableNames, err := m.AdminClient.Tables(context.Background())
 	if err != nil {
