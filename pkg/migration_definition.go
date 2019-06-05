@@ -7,11 +7,22 @@ import (
 )
 
 type MigrationDefinition struct {
-	Create CreateDefinition
+	Create CreateTablesDefinition
 	Drop   []string
 }
 
-type CreateDefinition map[string]map[string]GCDefinition
+type CreateTablesDefinition map[string]CreateFamiliesDefinition
+
+type CreateFamiliesDefinition map[string]GCDefinition
+
+func (c CreateFamiliesDefinition) toPolicyMap() map[string]bigtable.GCPolicy {
+	out := make(map[string]bigtable.GCPolicy, len(c))
+	for family, gcDef := range c {
+		out[family] = gcDef.toGCPolicy()
+	}
+
+	return out
+}
 
 type GCDefinition struct {
 	MaxVersions int

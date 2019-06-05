@@ -2,36 +2,64 @@ package btmigrate
 
 import (
 	"context"
-	"sort"
 
 	"cloud.google.com/go/bigtable"
 )
 
 type Migrator struct {
-	AdminClient     *bigtable.AdminClient
-	Client          *bigtable.Client
-	MigrationsTable string
+	AdminClient *bigtable.AdminClient
 }
 
 func (m *Migrator) Apply(def MigrationDefinition) error {
-	if err := m.createTables(def.Create); err != nil {
+	currentState, err := m.Tables()
+	if err != nil {
 		return err
 	}
-	return m.dropTables(def.Drop)
+
+	if err := m.createTables(def.Create, currentState); err != nil {
+		return err
+	}
+	return m.dropTables(def.Drop, currentState)
 }
 
-func (m *Migrator) createTables(tables map[string]map[string]GCDefinition) error {
-	for name, families := range tables {
-		tableConf := bigtable.TableConf{
-			TableID:  name,
-			Families: make(map[string]bigtable.GCPolicy),
+func (m *Migrator) createTables(create CreateTablesDefinition, currentState map[string]map[string]string) error {
+	var actions []action
+
+	for table, families := range create {
+		policies := families.toPolicyMap()
+
+		// Find tables that need to be created.
+		currentTable, exists := currentState[table]
+		if !exists {
+			actions = append(actions, createTable{
+				table:    table,
+				families: policies,
+			})
+			continue
 		}
 
-		for fam, gc := range families {
-			tableConf.Families[fam] = gc.toGCPolicy()
+		// Find families that need to be created or altered.
+		for desiredFamily, desiredPolicy := range policies {
+			currentPolicy, exists := currentTable[desiredFamily]
+			if !exists {
+				actions = append(actions, createFamily{table: table, family: desiredFamily})
+			}
+
+			if currentPolicy != desiredPolicy.String() {
+				actions = append(actions, setGCPolicy{table: table, family: desiredFamily, policy: desiredPolicy})
+			}
 		}
 
-		if err := m.AdminClient.CreateTableFromConf(context.Background(), &tableConf); err != nil {
+		// Find families that need to be deleted.
+		for currentFamily := range currentTable {
+			if _, exists := policies[currentFamily]; !exists {
+				actions = append(actions, deleteFamily{table: table, family: currentFamily})
+			}
+		}
+	}
+
+	for _, action := range actions {
+		if err := action.perform(m.AdminClient); err != nil {
 			return err
 		}
 	}
@@ -39,9 +67,18 @@ func (m *Migrator) createTables(tables map[string]map[string]GCDefinition) error
 	return nil
 }
 
-func (m *Migrator) dropTables(tables []string) error {
-	for _, name := range tables {
-		if err := m.AdminClient.DeleteTable(context.Background(), name); err != nil {
+func (m *Migrator) dropTables(tables []string, currentState map[string]map[string]string) error {
+	var actions []action
+	for _, table := range tables {
+		if _, exists := currentState[table]; !exists {
+			continue
+		}
+
+		actions = append(actions, dropTable{table: table})
+	}
+
+	for _, action := range actions {
+		if err := action.perform(m.AdminClient); err != nil {
 			return err
 		}
 	}
@@ -49,24 +86,25 @@ func (m *Migrator) dropTables(tables []string) error {
 	return nil
 }
 
-func (m *Migrator) Tables() (map[string][]bigtable.FamilyInfo, error) {
+func (m *Migrator) Tables() (map[string]map[string]string, error) {
 	tableNames, err := m.AdminClient.Tables(context.Background())
 	if err != nil {
 		return nil, err
 	}
 
-	infos := map[string][]bigtable.FamilyInfo{}
+	infos := make(map[string]map[string]string)
 	for _, table := range tableNames {
 		info, err := m.AdminClient.TableInfo(context.Background(), table)
 		if err != nil {
 			return nil, err
 		}
 
-		sort.Slice(info.FamilyInfos, func(i, j int) bool {
-			return info.FamilyInfos[i].Name < info.FamilyInfos[j].Name
-		})
+		policies := make(map[string]string)
+		for _, famInfo := range info.FamilyInfos {
+			policies[famInfo.Name] = famInfo.GCPolicy
+		}
 
-		infos[table] = info.FamilyInfos
+		infos[table] = policies
 	}
 
 	return infos, nil

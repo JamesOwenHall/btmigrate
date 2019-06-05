@@ -13,12 +13,12 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestMigratorCreate(t *testing.T) {
-	withBigtable(t, func(admin *bigtable.AdminClient, client *bigtable.Client) {
-		migrator := &Migrator{AdminClient: admin, Client: client}
+func TestMigratorCreateNewTables(t *testing.T) {
+	withBigtable(t, func(admin *bigtable.AdminClient) {
+		migrator := &Migrator{AdminClient: admin}
 		def := MigrationDefinition{
-			Create: CreateDefinition{
-				"table-1": map[string]GCDefinition{
+			Create: CreateTablesDefinition{
+				"table-1": CreateFamiliesDefinition{
 					"fam-1": GCDefinition{},
 					"fam-2": GCDefinition{MaxVersions: 1},
 					"fam-3": GCDefinition{MaxAge: time.Hour},
@@ -33,24 +33,163 @@ func TestMigratorCreate(t *testing.T) {
 		actual, err := migrator.Tables()
 		require.NoError(t, err)
 
-		expected := map[string][]bigtable.FamilyInfo{
-			"table-1": []bigtable.FamilyInfo{
-				{Name: "fam-1"},
-				{Name: "fam-2", GCPolicy: "versions() > 1"},
-				{Name: "fam-3", GCPolicy: "age() > 1h"},
-				{Name: "fam-4", GCPolicy: "(versions() > 1 || age() > 1h)"},
+		expected := map[string]map[string]string{
+			"table-1": map[string]string{
+				"fam-1": "",
+				"fam-2": "versions() > 1",
+				"fam-3": "age() > 1h",
+				"fam-4": "(versions() > 1 || age() > 1h)",
 			},
 		}
 		require.Equal(t, expected, actual)
 	})
 }
 
-func TestMigratorDrop(t *testing.T) {
-	withBigtable(t, func(admin *bigtable.AdminClient, client *bigtable.Client) {
-		migrator := &Migrator{AdminClient: admin, Client: client}
+func TestMigratorCreateExistingTable(t *testing.T) {
+	withBigtable(t, func(admin *bigtable.AdminClient) {
+		migrator := &Migrator{AdminClient: admin}
 		def := MigrationDefinition{
-			Create: CreateDefinition{
-				"table-1": map[string]GCDefinition{
+			Create: CreateTablesDefinition{
+				"table-1": CreateFamiliesDefinition{
+					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
+				},
+			},
+		}
+
+		err := migrator.Apply(def)
+		require.NoError(t, err)
+
+		// Apply the same migration twice.
+		err = migrator.Apply(def)
+		require.NoError(t, err)
+
+		actual, err := migrator.Tables()
+		require.NoError(t, err)
+
+		expected := map[string]map[string]string{
+			"table-1": map[string]string{
+				"fam-1": "(versions() > 1 || age() > 1h)",
+			},
+		}
+		require.Equal(t, expected, actual)
+	})
+}
+
+func TestMigratorAddColumnFamily(t *testing.T) {
+	withBigtable(t, func(admin *bigtable.AdminClient) {
+		migrator := &Migrator{AdminClient: admin}
+		def := MigrationDefinition{
+			Create: CreateTablesDefinition{
+				"table-1": CreateFamiliesDefinition{
+					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
+				},
+			},
+		}
+
+		err := migrator.Apply(def)
+		require.NoError(t, err)
+
+		def = MigrationDefinition{
+			Create: CreateTablesDefinition{
+				"table-1": CreateFamiliesDefinition{
+					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
+					"fam-2": GCDefinition{MaxVersions: 2, MaxAge: 2 * time.Hour},
+				},
+			},
+		}
+
+		err = migrator.Apply(def)
+		require.NoError(t, err)
+
+		actual, err := migrator.Tables()
+		require.NoError(t, err)
+
+		expected := map[string]map[string]string{
+			"table-1": map[string]string{
+				"fam-1": "(versions() > 1 || age() > 1h)",
+				"fam-2": "(versions() > 2 || age() > 2h)",
+			},
+		}
+		require.Equal(t, expected, actual)
+	})
+}
+
+func TestMigratorAlterColumnFamily(t *testing.T) {
+	withBigtable(t, func(admin *bigtable.AdminClient) {
+		migrator := &Migrator{AdminClient: admin}
+		def := MigrationDefinition{
+			Create: CreateTablesDefinition{
+				"table-1": CreateFamiliesDefinition{
+					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
+				},
+			},
+		}
+
+		err := migrator.Apply(def)
+		require.NoError(t, err)
+
+		def = MigrationDefinition{
+			Create: CreateTablesDefinition{
+				"table-1": CreateFamiliesDefinition{
+					"fam-1": GCDefinition{},
+				},
+			},
+		}
+
+		err = migrator.Apply(def)
+		require.NoError(t, err)
+
+		actual, err := migrator.Tables()
+		require.NoError(t, err)
+
+		expected := map[string]map[string]string{
+			"table-1": map[string]string{
+				"fam-1": "",
+			},
+		}
+		require.Equal(t, expected, actual)
+	})
+}
+
+func TestMigratorDeleteColumnFamily(t *testing.T) {
+	withBigtable(t, func(admin *bigtable.AdminClient) {
+		migrator := &Migrator{AdminClient: admin}
+		def := MigrationDefinition{
+			Create: CreateTablesDefinition{
+				"table-1": CreateFamiliesDefinition{
+					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
+				},
+			},
+		}
+
+		err := migrator.Apply(def)
+		require.NoError(t, err)
+
+		def = MigrationDefinition{
+			Create: CreateTablesDefinition{
+				"table-1": CreateFamiliesDefinition{},
+			},
+		}
+
+		err = migrator.Apply(def)
+		require.NoError(t, err)
+
+		actual, err := migrator.Tables()
+		require.NoError(t, err)
+
+		expected := map[string]map[string]string{
+			"table-1": map[string]string{},
+		}
+		require.Equal(t, expected, actual)
+	})
+}
+
+func TestMigratorDrop(t *testing.T) {
+	withBigtable(t, func(admin *bigtable.AdminClient) {
+		migrator := &Migrator{AdminClient: admin}
+		def := MigrationDefinition{
+			Create: CreateTablesDefinition{
+				"table-1": CreateFamiliesDefinition{
 					"fam-1": GCDefinition{},
 				},
 			},
@@ -72,7 +211,7 @@ func TestMigratorDrop(t *testing.T) {
 	})
 }
 
-func withBigtable(t *testing.T, fn func(*bigtable.AdminClient, *bigtable.Client)) {
+func withBigtable(t *testing.T, fn func(*bigtable.AdminClient)) {
 	server, err := bttest.NewServer("localhost:0")
 	require.NoError(t, err)
 	defer server.Close()
@@ -86,11 +225,5 @@ func withBigtable(t *testing.T, fn func(*bigtable.AdminClient, *bigtable.Client)
 	require.NoError(t, err)
 	defer adminClient.Close()
 
-	client, err := bigtable.NewClient(
-		context.Background(), "", "", option.WithGRPCConn(conn),
-	)
-	require.NoError(t, err)
-	defer client.Close()
-
-	fn(adminClient, client)
+	fn(adminClient)
 }
