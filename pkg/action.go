@@ -6,16 +6,16 @@ import (
 	"cloud.google.com/go/bigtable"
 )
 
-type action interface {
-	perform(*bigtable.AdminClient) error
+type Action interface {
+	Perform(*bigtable.AdminClient) error
 }
 
-type createTable struct {
+type CreateTable struct {
 	table    string
 	families map[string]bigtable.GCPolicy
 }
 
-func (c createTable) perform(admin *bigtable.AdminClient) error {
+func (c CreateTable) Perform(admin *bigtable.AdminClient) error {
 	conf := bigtable.TableConf{
 		TableID:  c.table,
 		Families: c.families,
@@ -24,38 +24,38 @@ func (c createTable) perform(admin *bigtable.AdminClient) error {
 	return admin.CreateTableFromConf(context.TODO(), &conf)
 }
 
-type createFamily struct {
+type CreateFamily struct {
 	table  string
 	family string
 }
 
-func (c createFamily) perform(admin *bigtable.AdminClient) error {
+func (c CreateFamily) Perform(admin *bigtable.AdminClient) error {
 	return admin.CreateColumnFamily(context.TODO(), c.table, c.family)
 }
 
-type setGCPolicy struct {
+type SetGCPolicy struct {
 	table  string
 	family string
 	policy bigtable.GCPolicy
 }
 
-func (s setGCPolicy) perform(admin *bigtable.AdminClient) error {
+func (s SetGCPolicy) Perform(admin *bigtable.AdminClient) error {
 	return admin.SetGCPolicy(context.TODO(), s.table, s.family, s.policy)
 }
 
-type deleteFamily struct {
+type DeleteFamily struct {
 	table  string
 	family string
 }
 
-func (d deleteFamily) perform(admin *bigtable.AdminClient) error {
+func (d DeleteFamily) Perform(admin *bigtable.AdminClient) error {
 	return admin.DeleteColumnFamily(context.TODO(), d.table, d.family)
 }
 
-type dropTable struct {
+type DropTable struct {
 	table string
 }
 
-func (d dropTable) perform(admin *bigtable.AdminClient) error {
+func (d DropTable) Perform(admin *bigtable.AdminClient) error {
 	return admin.DeleteTable(context.TODO(), d.table)
 }
