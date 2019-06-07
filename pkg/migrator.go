@@ -52,7 +52,7 @@ func (m *Migrator) Plan(def MigrationDefinition) ([]Action, error) {
 	}
 
 	// Find tables to drop.
-	for _, table := range def.Drop {
+	for table := range def.Drop {
 		if _, exists := currentState[table]; !exists {
 			continue
 		}

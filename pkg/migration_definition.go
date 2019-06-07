@@ -4,11 +4,18 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigtable"
+	"github.com/BurntSushi/toml"
 )
 
 type MigrationDefinition struct {
-	Create CreateTablesDefinition
-	Drop   []string
+	Create CreateTablesDefinition `toml:"create"`
+	Drop   map[string]struct{}    `toml:"drop"`
+}
+
+func LoadDefinition(input string) (MigrationDefinition, error) {
+	var def MigrationDefinition
+	_, err := toml.Decode(input, &def)
+	return def, err
 }
 
 type CreateTablesDefinition map[string]CreateFamiliesDefinition
@@ -25,8 +32,8 @@ func (c CreateFamiliesDefinition) toPolicyMap() map[string]bigtable.GCPolicy {
 }
 
 type GCDefinition struct {
-	MaxVersions int
-	MaxAge      time.Duration
+	MaxVersions int          `toml:"max-versions"`
+	MaxAge      TomlDuration `toml:"max-age"`
 }
 
 func (g GCDefinition) toGCPolicy() bigtable.GCPolicy {
@@ -36,7 +43,7 @@ func (g GCDefinition) toGCPolicy() bigtable.GCPolicy {
 		policies = append(policies, bigtable.MaxVersionsPolicy(g.MaxVersions))
 	}
 	if g.MaxAge != 0 {
-		policies = append(policies, bigtable.MaxAgePolicy(g.MaxAge))
+		policies = append(policies, bigtable.MaxAgePolicy(time.Duration(g.MaxAge)))
 	}
 
 	switch len(policies) {
@@ -47,4 +54,12 @@ func (g GCDefinition) toGCPolicy() bigtable.GCPolicy {
 	default:
 		return bigtable.UnionPolicy(policies...)
 	}
+}
+
+type TomlDuration time.Duration
+
+func (d *TomlDuration) UnmarshalText(text []byte) error {
+	parsed, err := time.ParseDuration(string(text))
+	*d = TomlDuration(parsed)
+	return err
 }

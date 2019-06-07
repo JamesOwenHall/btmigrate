@@ -21,8 +21,8 @@ func TestMigratorCreateNewTables(t *testing.T) {
 				"table-1": CreateFamiliesDefinition{
 					"fam-1": GCDefinition{},
 					"fam-2": GCDefinition{MaxVersions: 1},
-					"fam-3": GCDefinition{MaxAge: time.Hour},
-					"fam-4": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
+					"fam-3": GCDefinition{MaxAge: TomlDuration(time.Hour)},
+					"fam-4": GCDefinition{MaxVersions: 1, MaxAge: TomlDuration(time.Hour)},
 				},
 			},
 		}
@@ -51,7 +51,7 @@ func TestMigratorCreateExistingTable(t *testing.T) {
 		def := MigrationDefinition{
 			Create: CreateTablesDefinition{
 				"table-1": CreateFamiliesDefinition{
-					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
+					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: TomlDuration(time.Hour)},
 				},
 			},
 		}
@@ -81,7 +81,7 @@ func TestMigratorAddColumnFamily(t *testing.T) {
 		def := MigrationDefinition{
 			Create: CreateTablesDefinition{
 				"table-1": CreateFamiliesDefinition{
-					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
+					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: TomlDuration(time.Hour)},
 				},
 			},
 		}
@@ -92,8 +92,8 @@ func TestMigratorAddColumnFamily(t *testing.T) {
 		def = MigrationDefinition{
 			Create: CreateTablesDefinition{
 				"table-1": CreateFamiliesDefinition{
-					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
-					"fam-2": GCDefinition{MaxVersions: 2, MaxAge: 2 * time.Hour},
+					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: TomlDuration(time.Hour)},
+					"fam-2": GCDefinition{MaxVersions: 2, MaxAge: 2 * TomlDuration(time.Hour)},
 				},
 			},
 		}
@@ -120,7 +120,7 @@ func TestMigratorAlterColumnFamily(t *testing.T) {
 		def := MigrationDefinition{
 			Create: CreateTablesDefinition{
 				"table-1": CreateFamiliesDefinition{
-					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
+					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: TomlDuration(time.Hour)},
 				},
 			},
 		}
@@ -157,7 +157,7 @@ func TestMigratorDeleteColumnFamily(t *testing.T) {
 		def := MigrationDefinition{
 			Create: CreateTablesDefinition{
 				"table-1": CreateFamiliesDefinition{
-					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: time.Hour},
+					"fam-1": GCDefinition{MaxVersions: 1, MaxAge: TomlDuration(time.Hour)},
 				},
 			},
 		}
@@ -199,7 +199,9 @@ func TestMigratorDrop(t *testing.T) {
 		require.NoError(t, err)
 
 		def = MigrationDefinition{
-			Drop: []string{"table-1"},
+			Drop: map[string]struct{}{
+				"table-1": struct{}{},
+			},
 		}
 
 		err = migrator.Apply(def)

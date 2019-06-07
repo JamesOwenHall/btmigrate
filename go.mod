@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	cloud.google.com/go v0.39.0
+	github.com/BurntSushi/toml v0.3.1
 	github.com/kezhuw/toml v0.0.0-20160123093527-d917dda83f61
 	github.com/stretchr/testify v1.3.0
 	github.com/urfave/cli v1.20.0
