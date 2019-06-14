@@ -34,3 +34,22 @@ func TestLoadDefinition(t *testing.T) {
 
 	require.Equal(t, expected, def)
 }
+
+func TestLoadDefinitionFile(t *testing.T) {
+	def, err := LoadDefinitionFile("../fixtures/TestLoadDefinitionFile.toml")
+	require.NoError(t, err)
+
+	expected := MigrationDefinition{
+		Create: CreateTablesDefinition{
+			"table-1": CreateFamiliesDefinition{
+				"fam-1": GCDefinition{},
+				"fam-2": GCDefinition{MaxVersions: 2, MaxAge: TomlDuration(time.Hour)},
+			},
+		},
+		Drop: map[string]struct{}{
+			"table-2": struct{}{},
+		},
+	}
+
+	require.Equal(t, expected, def)
+}

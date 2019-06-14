@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"cloud.google.com/go/bigtable"
 	root "github.com/JamesOwenHall/btmigrate"
@@ -10,19 +11,36 @@ import (
 	"github.com/urfave/cli"
 )
 
-func NewApp() *cli.App {
+type AppParams struct {
+	Project    string
+	Instance   string
+	Definition string
+}
+
+func NewApp(out io.Writer) *cli.App {
+	var params AppParams
+
 	app := cli.NewApp()
 	app.Name = "btmigrate"
 	app.Usage = "declarative Bigtable migrations"
 	app.Version = root.Version
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "project",
-			Usage: "the Google Cloud project",
+			Name:        "project",
+			Destination: &params.Project,
+			Usage:       "the Google Cloud project",
 		},
 		cli.StringFlag{
-			Name:  "instance",
-			Usage: "the Bigtable instance",
+			Name:        "instance",
+			Destination: &params.Instance,
+			Usage:       "the Bigtable instance",
+		},
+		cli.StringFlag{
+			Name:        "definition",
+			Destination: &params.Definition,
+			Value:       "bigtable_state.yml",
+			Usage:       "the path to the migration definition file",
+			EnvVar:      "BT_DEFINITION",
 		},
 	}
 	app.Commands = []cli.Command{
@@ -30,12 +48,29 @@ func NewApp() *cli.App {
 			Name:      "plan",
 			ShortName: "p",
 			Action: func(c *cli.Context) {
-				_, err := buildMigrator(c)
+				migrator, err := buildMigrator(params)
 				if err != nil {
 					panic(err)
 				}
 
-				fmt.Println("Planning... Done.")
+				def, err := btmigrate.LoadDefinitionFile(params.Definition)
+				if err != nil {
+					panic(err)
+				}
+
+				actions, err := migrator.Plan(def)
+				if err != nil {
+					panic(err)
+				}
+
+				if len(actions) == 0 {
+					fmt.Fprintln(out, "No actions to take.")
+					return
+				}
+
+				for i, action := range actions {
+					fmt.Fprintf(out, "%d. %s\n", i+1, action.HumanOutput())
+				}
 			},
 		},
 	}
@@ -43,11 +78,11 @@ func NewApp() *cli.App {
 	return app
 }
 
-func buildMigrator(c *cli.Context) (*btmigrate.Migrator, error) {
+func buildMigrator(params AppParams) (*btmigrate.Migrator, error) {
 	admin, err := bigtable.NewAdminClient(
 		context.Background(),
-		c.String("project"),
-		c.String("instance"),
+		params.Project,
+		params.Instance,
 	)
 
 	return &btmigrate.Migrator{AdminClient: admin}, err

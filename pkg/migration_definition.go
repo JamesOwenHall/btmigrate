@@ -12,6 +12,12 @@ type MigrationDefinition struct {
 	Drop   map[string]struct{}    `toml:"drop"`
 }
 
+func LoadDefinitionFile(path string) (MigrationDefinition, error) {
+	var def MigrationDefinition
+	_, err := toml.DecodeFile(path, &def)
+	return def, err
+}
+
 func LoadDefinition(input string) (MigrationDefinition, error) {
 	var def MigrationDefinition
 	_, err := toml.Decode(input, &def)

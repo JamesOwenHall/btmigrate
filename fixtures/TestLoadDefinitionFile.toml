@@ -1,0 +1,5 @@
+[create.table-1]
+fam-1 = {}
+fam-2 = {max-versions = 2, max-age = "1h"}
+
+[drop.table-2]
