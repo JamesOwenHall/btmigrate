@@ -12,5 +12,5 @@ fam-1 = {}
 fam-2 = {max-versions = 1, max-age = "6h"}
 
 # Ensure table3 does not exist.
-[delete.table3]
+[drop.table3]
 ```
