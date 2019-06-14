@@ -12,14 +12,8 @@ import (
 	"github.com/urfave/cli"
 )
 
-type AppParams struct {
-	Project    string
-	Instance   string
-	Definition string
-}
-
-func NewApp(out io.Writer) *cli.App {
-	var params AppParams
+func NewCLI(out io.Writer) *cli.App {
+	params := AppParams{Out: out}
 
 	app := cli.NewApp()
 	app.Name = "btmigrate"
@@ -49,31 +43,17 @@ func NewApp(out io.Writer) *cli.App {
 			Name:      "plan",
 			ShortName: "p",
 			Action: func(c *cli.Context) {
-				migrator, err := buildMigrator(params)
+				app, err := NewApp(params)
 				if err != nil {
 					errExit(err)
 				}
 
-				def, err := btmigrate.LoadDefinitionFile(params.Definition)
+				actions, err := app.Migrator.Plan(app.Definition)
 				if err != nil {
 					errExit(err)
 				}
 
-				actions, err := migrator.Plan(def)
-				if err != nil {
-					errExit(err)
-				}
-
-				fmt.Fprintln(out, "BTMIGRATE: PLAN")
-				fmt.Fprintln(out, "===============")
-				if len(actions) == 0 {
-					fmt.Fprintln(out, "No actions to take.")
-					return
-				}
-
-				for i, action := range actions {
-					fmt.Fprintf(out, "%d. %s\n", i+1, action.HumanOutput())
-				}
+				app.OutputPlan(actions)
 			},
 		},
 	}
@@ -81,14 +61,52 @@ func NewApp(out io.Writer) *cli.App {
 	return app
 }
 
-func buildMigrator(params AppParams) (*btmigrate.Migrator, error) {
+type AppParams struct {
+	Out        io.Writer
+	Project    string
+	Instance   string
+	Definition string
+}
+
+type App struct {
+	Out        io.Writer
+	Migrator   *btmigrate.Migrator
+	Definition btmigrate.MigrationDefinition
+}
+
+func NewApp(params AppParams) (*App, error) {
 	admin, err := bigtable.NewAdminClient(
 		context.Background(),
 		params.Project,
 		params.Instance,
 	)
+	if err != nil {
+		return nil, err
+	}
 
-	return &btmigrate.Migrator{AdminClient: admin}, err
+	def, err := btmigrate.LoadDefinitionFile(params.Definition)
+	if err != nil {
+		return nil, err
+	}
+
+	return &App{
+		Out:        params.Out,
+		Migrator:   &btmigrate.Migrator{AdminClient: admin},
+		Definition: def,
+	}, nil
+}
+
+func (a *App) OutputPlan(actions []btmigrate.Action) {
+	fmt.Fprintln(a.Out, "BTMIGRATE: PLAN")
+	fmt.Fprintln(a.Out, "===============")
+	if len(actions) == 0 {
+		fmt.Fprintln(a.Out, "No actions to take.")
+		return
+	}
+
+	for i, action := range actions {
+		fmt.Fprintf(a.Out, "%d. %s\n", i+1, action.HumanOutput())
+	}
 }
 
 func errExit(err error) {
