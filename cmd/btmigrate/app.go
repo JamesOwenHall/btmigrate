@@ -56,6 +56,24 @@ func NewCLI(out io.Writer) *cli.App {
 				app.OutputPlan(actions)
 			},
 		},
+		cli.Command{
+			Name:      "apply",
+			ShortName: "a",
+			Action: func(c *cli.Context) {
+				app, err := NewApp(params)
+				if err != nil {
+					errExit(err)
+				}
+
+				actions, err := app.Migrator.Plan(app.Definition)
+				if err != nil {
+					errExit(err)
+				}
+
+				app.OutputPlan(actions)
+				app.Apply(actions)
+			},
+		},
 	}
 
 	return app
@@ -97,7 +115,7 @@ func NewApp(params AppParams) (*App, error) {
 }
 
 func (a *App) OutputPlan(actions []btmigrate.Action) {
-	fmt.Fprintln(a.Out, "BTMIGRATE: PLAN")
+	fmt.Fprintln(a.Out, "Plan")
 	fmt.Fprintln(a.Out, "===============")
 	if len(actions) == 0 {
 		fmt.Fprintln(a.Out, "No actions to take.")
@@ -107,6 +125,24 @@ func (a *App) OutputPlan(actions []btmigrate.Action) {
 	for i, action := range actions {
 		fmt.Fprintf(a.Out, "%d. %s\n", i+1, action.HumanOutput())
 	}
+}
+
+func (a *App) Apply(actions []btmigrate.Action) error {
+	if len(actions) == 0 {
+		return nil
+	}
+
+	fmt.Fprintln(a.Out, "")
+	fmt.Fprintln(a.Out, "Applying…")
+
+	err := a.Migrator.Apply(actions)
+	if err != nil {
+		fmt.Fprintln(a.Out, "Failed.")
+	} else {
+		fmt.Fprintln(a.Out, "Complete.")
+	}
+
+	return err
 }
 
 func errExit(err error) {
