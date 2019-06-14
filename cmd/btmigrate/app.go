@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"cloud.google.com/go/bigtable"
 	root "github.com/JamesOwenHall/btmigrate"
@@ -50,19 +51,21 @@ func NewApp(out io.Writer) *cli.App {
 			Action: func(c *cli.Context) {
 				migrator, err := buildMigrator(params)
 				if err != nil {
-					panic(err)
+					errExit(err)
 				}
 
 				def, err := btmigrate.LoadDefinitionFile(params.Definition)
 				if err != nil {
-					panic(err)
+					errExit(err)
 				}
 
 				actions, err := migrator.Plan(def)
 				if err != nil {
-					panic(err)
+					errExit(err)
 				}
 
+				fmt.Fprintln(out, "BTMIGRATE: PLAN")
+				fmt.Fprintln(out, "===============")
 				if len(actions) == 0 {
 					fmt.Fprintln(out, "No actions to take.")
 					return
@@ -86,4 +89,9 @@ func buildMigrator(params AppParams) (*btmigrate.Migrator, error) {
 	)
 
 	return &btmigrate.Migrator{AdminClient: admin}, err
+}
+
+func errExit(err error) {
+	fmt.Fprintln(os.Stderr, err.Error())
+	os.Exit(1)
 }
