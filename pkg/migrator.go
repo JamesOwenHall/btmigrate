@@ -63,12 +63,7 @@ func (m *Migrator) Plan(def MigrationDefinition) ([]Action, error) {
 	return actions, nil
 }
 
-func (m *Migrator) Apply(def MigrationDefinition) error {
-	actions, err := m.Plan(def)
-	if err != nil {
-		return err
-	}
-
+func (m *Migrator) Apply(actions []Action) error {
 	for _, action := range actions {
 		if err := action.Perform(m.AdminClient); err != nil {
 			return err
