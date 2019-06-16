@@ -136,21 +136,18 @@ func (a *App) OutputPlan(actions []btmigrate.Action) {
 }
 
 func (a *App) Apply(actions []btmigrate.Action) error {
-	if len(actions) == 0 {
-		fmt.Fprintln(a.Out, "Complete.")
-		return nil
+	for i, action := range actions {
+		fmt.Fprintf(a.Out, "Applying %d (%s).\n", i+1, action.HumanOutput())
+
+		err := a.Migrator.Apply(action)
+		if err != nil {
+			fmt.Fprintln(a.Out, "Failed.")
+			return err
+		}
 	}
 
-	fmt.Fprintln(a.Out, "Applying…")
-
-	err := a.Migrator.Apply(actions)
-	if err != nil {
-		fmt.Fprintln(a.Out, "Failed.")
-	} else {
-		fmt.Fprintln(a.Out, "Complete.")
-	}
-
-	return err
+	fmt.Fprintln(a.Out, "Complete.")
+	return nil
 }
 
 func errExit(err error) {

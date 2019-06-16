@@ -30,7 +30,7 @@ func TestMigratorCreateNewTables(t *testing.T) {
 		actions, err := migrator.Plan(def)
 		require.NoError(t, err)
 
-		err = migrator.Apply(actions)
+		err = migrator.Apply(actions...)
 		require.NoError(t, err)
 
 		actual, err := migrator.Tables()
@@ -62,7 +62,7 @@ func TestMigratorCreateExistingTable(t *testing.T) {
 		actions, err := migrator.Plan(def)
 		require.NoError(t, err)
 
-		err = migrator.Apply(actions)
+		err = migrator.Apply(actions...)
 		require.NoError(t, err)
 
 		// Plan should be empty after calling apply().
@@ -96,7 +96,7 @@ func TestMigratorAddColumnFamily(t *testing.T) {
 		actions, err := migrator.Plan(def)
 		require.NoError(t, err)
 
-		err = migrator.Apply(actions)
+		err = migrator.Apply(actions...)
 		require.NoError(t, err)
 
 		def = MigrationDefinition{
@@ -111,7 +111,7 @@ func TestMigratorAddColumnFamily(t *testing.T) {
 		actions, err = migrator.Plan(def)
 		require.NoError(t, err)
 
-		err = migrator.Apply(actions)
+		err = migrator.Apply(actions...)
 		require.NoError(t, err)
 
 		actual, err := migrator.Tables()
@@ -141,7 +141,7 @@ func TestMigratorAlterColumnFamily(t *testing.T) {
 		actions, err := migrator.Plan(def)
 		require.NoError(t, err)
 
-		err = migrator.Apply(actions)
+		err = migrator.Apply(actions...)
 		require.NoError(t, err)
 
 		def = MigrationDefinition{
@@ -155,7 +155,7 @@ func TestMigratorAlterColumnFamily(t *testing.T) {
 		actions, err = migrator.Plan(def)
 		require.NoError(t, err)
 
-		err = migrator.Apply(actions)
+		err = migrator.Apply(actions...)
 		require.NoError(t, err)
 
 		actual, err := migrator.Tables()
@@ -184,7 +184,7 @@ func TestMigratorDeleteColumnFamily(t *testing.T) {
 		actions, err := migrator.Plan(def)
 		require.NoError(t, err)
 
-		err = migrator.Apply(actions)
+		err = migrator.Apply(actions...)
 		require.NoError(t, err)
 
 		def = MigrationDefinition{
@@ -196,7 +196,7 @@ func TestMigratorDeleteColumnFamily(t *testing.T) {
 		actions, err = migrator.Plan(def)
 		require.NoError(t, err)
 
-		err = migrator.Apply(actions)
+		err = migrator.Apply(actions...)
 		require.NoError(t, err)
 
 		actual, err := migrator.Tables()
@@ -223,7 +223,7 @@ func TestMigratorDrop(t *testing.T) {
 		actions, err := migrator.Plan(def)
 		require.NoError(t, err)
 
-		err = migrator.Apply(actions)
+		err = migrator.Apply(actions...)
 		require.NoError(t, err)
 
 		def = MigrationDefinition{
@@ -235,7 +235,7 @@ func TestMigratorDrop(t *testing.T) {
 		actions, err = migrator.Plan(def)
 		require.NoError(t, err)
 
-		err = migrator.Apply(actions)
+		err = migrator.Apply(actions...)
 		require.NoError(t, err)
 
 		actual, err := migrator.Tables()
