@@ -25,8 +25,8 @@ func (m *Migrator) Plan(def MigrationDefinition) ([]Action, error) {
 		currentTable, exists := currentState[table]
 		if !exists {
 			actions = append(actions, CreateTable{
-				table:    table,
-				families: policies,
+				Table:    table,
+				Families: policies,
 			})
 			continue
 		}
@@ -35,18 +35,28 @@ func (m *Migrator) Plan(def MigrationDefinition) ([]Action, error) {
 		for desiredFamily, desiredPolicy := range policies {
 			currentPolicy, exists := currentTable[desiredFamily]
 			if !exists {
-				actions = append(actions, CreateFamily{table: table, family: desiredFamily})
+				actions = append(actions, CreateFamily{
+					Table:  table,
+					Family: desiredFamily,
+				})
 			}
 
 			if currentPolicy != desiredPolicy.String() {
-				actions = append(actions, SetGCPolicy{table: table, family: desiredFamily, policy: desiredPolicy})
+				actions = append(actions, SetGCPolicy{
+					Table:  table,
+					Family: desiredFamily,
+					Policy: desiredPolicy,
+				})
 			}
 		}
 
 		// Find families that need to be deleted.
 		for currentFamily := range currentTable {
 			if _, exists := policies[currentFamily]; !exists {
-				actions = append(actions, DeleteFamily{table: table, family: currentFamily})
+				actions = append(actions, DeleteFamily{
+					Table:  table,
+					Family: currentFamily,
+				})
 			}
 		}
 	}
@@ -57,7 +67,7 @@ func (m *Migrator) Plan(def MigrationDefinition) ([]Action, error) {
 			continue
 		}
 
-		actions = append(actions, DropTable{table: table})
+		actions = append(actions, DropTable{Table: table})
 	}
 
 	return actions, nil

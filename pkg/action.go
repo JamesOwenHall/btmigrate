@@ -13,71 +13,71 @@ type Action interface {
 }
 
 type CreateTable struct {
-	table    string
-	families map[string]bigtable.GCPolicy
+	Table    string
+	Families map[string]bigtable.GCPolicy
 }
 
 func (c CreateTable) Perform(admin *bigtable.AdminClient) error {
 	conf := bigtable.TableConf{
-		TableID:  c.table,
-		Families: c.families,
+		TableID:  c.Table,
+		Families: c.Families,
 	}
 
 	return admin.CreateTableFromConf(context.TODO(), &conf)
 }
 
 func (c CreateTable) HumanOutput() string {
-	return fmt.Sprintf("Create table (including families) => %s", c.table)
+	return fmt.Sprintf("Create table %s (including families)", c.Table)
 }
 
 type CreateFamily struct {
-	table  string
-	family string
+	Table  string
+	Family string
 }
 
 func (c CreateFamily) Perform(admin *bigtable.AdminClient) error {
-	return admin.CreateColumnFamily(context.TODO(), c.table, c.family)
+	return admin.CreateColumnFamily(context.TODO(), c.Table, c.Family)
 }
 
 func (c CreateFamily) HumanOutput() string {
-	return fmt.Sprintf("Create column family => %s.%s", c.table, c.family)
+	return fmt.Sprintf("Create column family %s.%s", c.Table, c.Family)
 }
 
 type SetGCPolicy struct {
-	table  string
-	family string
-	policy bigtable.GCPolicy
+	Table  string
+	Family string
+	Policy bigtable.GCPolicy
 }
 
 func (s SetGCPolicy) Perform(admin *bigtable.AdminClient) error {
-	return admin.SetGCPolicy(context.TODO(), s.table, s.family, s.policy)
+	return admin.SetGCPolicy(context.TODO(), s.Table, s.Family, s.Policy)
 }
 
 func (s SetGCPolicy) HumanOutput() string {
-	return fmt.Sprintf("Update GC policy => %s.%s %s", s.table, s.family, s.policy.String())
+	return fmt.Sprintf("Set GC policy %s.%s %s", s.Table, s.Family, s.Policy.String())
 }
 
 type DeleteFamily struct {
-	table  string
-	family string
+	Table  string
+	Family string
 }
 
 func (d DeleteFamily) Perform(admin *bigtable.AdminClient) error {
-	return admin.DeleteColumnFamily(context.TODO(), d.table, d.family)
+	return admin.DeleteColumnFamily(context.TODO(), d.Table, d.Family)
 }
 
 func (d DeleteFamily) HumanOutput() string {
-	return fmt.Sprintf("Delete column family => %s.%s", d.table, d.family)
+	return fmt.Sprintf("Delete column family %s.%s", d.Table, d.Family)
 }
 
 type DropTable struct {
-	table string
+	Table string
 }
 
 func (d DropTable) Perform(admin *bigtable.AdminClient) error {
-	return admin.DeleteTable(context.TODO(), d.table)
+	return admin.DeleteTable(context.TODO(), d.Table)
 }
 
 func (d DropTable) HumanOutput() string {
-	return fmt.Sprintf("Drop table => %s", d.table)
+	return fmt.Sprintf("Drop table %s", d.Table)
 }
