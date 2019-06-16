@@ -47,13 +47,7 @@ func NewCLI(out io.Writer) *cli.App {
 				if err != nil {
 					errExit(err)
 				}
-
-				actions, err := app.Migrator.Plan(app.Definition)
-				if err != nil {
-					errExit(err)
-				}
-
-				app.OutputPlan(actions)
+				errExit(app.RunPlan())
 			},
 		},
 		cli.Command{
@@ -64,14 +58,7 @@ func NewCLI(out io.Writer) *cli.App {
 				if err != nil {
 					errExit(err)
 				}
-
-				actions, err := app.Migrator.Plan(app.Definition)
-				if err != nil {
-					errExit(err)
-				}
-
-				app.OutputPlan(actions)
-				app.Apply(actions)
+				errExit(app.RunApply())
 			},
 		},
 	}
@@ -114,6 +101,27 @@ func NewApp(params AppParams) (*App, error) {
 	}, nil
 }
 
+func (a *App) RunPlan() error {
+	actions, err := a.Migrator.Plan(a.Definition)
+	if err != nil {
+		return err
+	}
+
+	a.OutputPlan(actions)
+	return nil
+}
+
+func (a *App) RunApply() error {
+	actions, err := a.Migrator.Plan(a.Definition)
+	if err != nil {
+		errExit(err)
+	}
+
+	a.OutputPlan(actions)
+	fmt.Fprintln(a.Out, "")
+	return a.Apply(actions)
+}
+
 func (a *App) OutputPlan(actions []btmigrate.Action) {
 	fmt.Fprintln(a.Out, "Plan")
 	fmt.Fprintln(a.Out, "===============")
@@ -129,10 +137,10 @@ func (a *App) OutputPlan(actions []btmigrate.Action) {
 
 func (a *App) Apply(actions []btmigrate.Action) error {
 	if len(actions) == 0 {
+		fmt.Fprintln(a.Out, "Complete.")
 		return nil
 	}
 
-	fmt.Fprintln(a.Out, "")
 	fmt.Fprintln(a.Out, "Applying…")
 
 	err := a.Migrator.Apply(actions)
@@ -146,6 +154,10 @@ func (a *App) Apply(actions []btmigrate.Action) error {
 }
 
 func errExit(err error) {
+	if err == nil {
+		return
+	}
+
 	fmt.Fprintln(os.Stderr, err.Error())
 	os.Exit(1)
 }
