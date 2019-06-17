@@ -33,7 +33,7 @@ func NewCLI(out io.Writer) *cli.App {
 		cli.StringFlag{
 			Name:        "definition",
 			Destination: &params.Definition,
-			Value:       "bigtable_state.yml",
+			Value:       "bigtable_state.toml",
 			Usage:       "the path to the migration definition file",
 			EnvVar:      "BT_DEFINITION",
 		},
