@@ -74,9 +74,8 @@ type AppParams struct {
 }
 
 type App struct {
-	Out        io.Writer
-	Migrator   *btmigrate.Migrator
-	Definition btmigrate.MigrationDefinition
+	AppParams
+	Migrator *btmigrate.Migrator
 }
 
 func NewApp(params AppParams) (*App, error) {
@@ -89,40 +88,44 @@ func NewApp(params AppParams) (*App, error) {
 		return nil, err
 	}
 
-	def, err := btmigrate.LoadDefinitionFile(params.Definition)
-	if err != nil {
-		return nil, err
-	}
-
 	return &App{
-		Out:        params.Out,
-		Migrator:   &btmigrate.Migrator{AdminClient: admin},
-		Definition: def,
+		AppParams: params,
+		Migrator:  &btmigrate.Migrator{AdminClient: admin},
 	}, nil
 }
 
 func (a *App) RunPlan() error {
-	actions, err := a.Migrator.Plan(a.Definition)
+	def, err := btmigrate.LoadDefinitionFile(a.Definition)
 	if err != nil {
 		return err
 	}
 
-	a.OutputPlan(actions)
+	actions, err := a.Migrator.Plan(def)
+	if err != nil {
+		return err
+	}
+
+	a.outputPlan(actions)
 	return nil
 }
 
 func (a *App) RunApply() error {
-	actions, err := a.Migrator.Plan(a.Definition)
+	def, err := btmigrate.LoadDefinitionFile(a.Definition)
 	if err != nil {
-		errExit(err)
+		return err
 	}
 
-	a.OutputPlan(actions)
+	actions, err := a.Migrator.Plan(def)
+	if err != nil {
+		return err
+	}
+
+	a.outputPlan(actions)
 	fmt.Fprintln(a.Out, "")
-	return a.Apply(actions)
+	return a.apply(actions)
 }
 
-func (a *App) OutputPlan(actions []btmigrate.Action) {
+func (a *App) outputPlan(actions []btmigrate.Action) {
 	fmt.Fprintln(a.Out, "Plan")
 	fmt.Fprintln(a.Out, "===============")
 	if len(actions) == 0 {
@@ -135,7 +138,7 @@ func (a *App) OutputPlan(actions []btmigrate.Action) {
 	}
 }
 
-func (a *App) Apply(actions []btmigrate.Action) error {
+func (a *App) apply(actions []btmigrate.Action) error {
 	for i, action := range actions {
 		fmt.Fprintf(a.Out, "Applying %d (%s).\n", i+1, action.HumanOutput())
 
