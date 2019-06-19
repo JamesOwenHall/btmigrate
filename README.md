@@ -1,5 +1,7 @@
 <img src="logo.png" width="300">
 
+[![Build Status](https://travis-ci.com/JamesOwenHall/btmigrate.svg?branch=master)](https://travis-ci.com/JamesOwenHall/btmigrate)
+
 btmigrate is a tool for declaratively managing tables and column families in Bigtable.
 
 ## Installation
